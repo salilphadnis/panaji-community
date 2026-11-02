@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, MapPin, UploadCloud } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: { sitekey: string; callback: (token: string) => void; "expired-callback": () => void; "error-callback": () => void }) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 type Props = { onClose: () => void; onSubmitted: () => void; initialLatitude: number; initialLongitude: number };
 
@@ -16,6 +28,43 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileContainer = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!turnstileSiteKey || !turnstileContainer.current) return;
+    let disposed = false;
+    const renderWidget = () => {
+      if (disposed || widgetId.current || !turnstileContainer.current || !window.turnstile) return;
+      widgetId.current = window.turnstile.render(turnstileContainer.current, {
+        sitekey: turnstileSiteKey,
+        callback: setTurnstileToken,
+        "expired-callback": () => setTurnstileToken(""),
+        "error-callback": () => setTurnstileToken("")
+      });
+    };
+    const scriptId = "cloudflare-turnstile-script";
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    script.addEventListener("load", renderWidget);
+    renderWidget();
+    const interval = window.setInterval(renderWidget, 250);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      script?.removeEventListener("load", renderWidget);
+      if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);
+      widgetId.current = null;
+    };
+  }, []);
 
   async function useLocation() {
     setError("");
@@ -48,6 +97,8 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
       body.set("latitude", String(lat));
       body.set("longitude", String(lng));
       if (file) body.set("photo", file);
+      if (turnstileSiteKey && !turnstileToken) throw new Error("Please complete the security check.");
+      body.set("turnstileToken", turnstileToken);
       const response = await fetch("/api/reports", { method: "POST", body });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to submit report.");
@@ -55,6 +106,8 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
       onSubmitted();
       setTimeout(onClose, 1600);
     } catch (e) {
+      setTurnstileToken("");
+      if (widgetId.current) window.turnstile?.reset(widgetId.current);
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
@@ -100,11 +153,12 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
             </div>
           </div>
           <div className="hint">Reports are public. Do not submit private, sensitive, or emergency information. For immediate danger, contact local emergency services.</div>
+          {turnstileSiteKey ? <div className="field"><label>Security check</label><div ref={turnstileContainer} /></div> : <div className="hint">Security check is not configured on this site.</div>}
           {error && <p className="form-error">{error}</p>}
           {message && <p className="form-success">{message}</p>}
           <div className="form-actions">
             <button type="button" className="secondary-btn" onClick={onClose}>Cancel</button>
-            <button type="submit" className="primary-btn" disabled={busy}>{busy ? "Submitting…" : "Submit report"}</button>
+            <button type="submit" className="primary-btn" disabled={busy || (!!turnstileSiteKey && !turnstileToken)}>{busy ? "Submitting…" : "Submit report"}</button>
           </div>
         </form>
       </section>
