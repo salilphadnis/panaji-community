@@ -11,6 +11,7 @@ type Props = {
   onSelect: (report: Report) => void;
   selectedId?: string | null;
   onCenterChange?: (center: { latitude: number; longitude: number }) => void;
+  destination?: { latitude: number; longitude: number; zoom: number; requestId: number } | null;
   pickingLocation?: boolean;
   onLocationPicked?: (point: { latitude: number; longitude: number }) => void;
 };
@@ -35,7 +36,7 @@ const ICONS = {
   Other: MapPin,
 } satisfies Record<Category, typeof MapPin>;
 
-export default function MapView({ reports, onSelect, selectedId, onCenterChange, pickingLocation = false, onLocationPicked }: Props) {
+export default function MapView({ reports, onSelect, selectedId, onCenterChange, destination, pickingLocation = false, onLocationPicked }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<Map | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -101,6 +102,15 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
   }, []);
 
   useEffect(() => {
+    if (!destination || !map.current) return;
+    map.current.flyTo({
+      center: [destination.longitude, destination.latitude],
+      zoom: destination.zoom,
+      essential: true,
+    });
+  }, [destination]);
+
+  useEffect(() => {
     const instance = map.current;
     if (!instance) return;
     markers.current.forEach((marker) => marker.remove());
@@ -141,7 +151,7 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
 
   return (
     <div className="map-wrap">
-      <div ref={container} className="map-canvas" aria-label="Map of community reports in Panaji" />
+      <div ref={container} className="map-canvas" aria-label="Map of community reports" />
     </div>
   );
 }

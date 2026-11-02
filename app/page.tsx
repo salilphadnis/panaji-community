@@ -6,8 +6,9 @@ import { MapPin, Plus, ShieldCheck, Camera, RefreshCw } from "lucide-react";
 import ReportForm from "@/components/ReportForm";
 import { supabase } from "@/lib/supabase";
 import { CATEGORIES, type Report } from "@/lib/types";
+import { GOA_LOCATIONS } from "@/lib/locations";
 
-const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="loading">Loading Panaji map…</div> });
+const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="loading">Loading map…</div> });
 const filters = ["All reports", ...CATEGORIES];
 
 export default function Home() {
@@ -15,6 +16,9 @@ export default function Home() {
   const [filter, setFilter] = useState("All reports");
   const [showForm, setShowForm] = useState(false);
   const [mapCenter, setMapCenter] = useState({ latitude: 15.4909, longitude: 73.8278 });
+  const [selectedArea, setSelectedArea] = useState("current");
+  const [locationMessage, setLocationMessage] = useState("Requesting browser location…");
+  const [mapDestination, setMapDestination] = useState<{latitude: number; longitude: number; zoom: number; requestId: number} | null>(null);
   const [pickingLocation, setPickingLocation] = useState(false);
   const [pickedLocation, setPickedLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [selected, setSelected] = useState<Report | null>(null);
@@ -36,6 +40,43 @@ export default function Home() {
   }, []);
 
   useEffect(() => { loadReports(); }, [loadReports]);
+
+  const navigateTo = useCallback((latitude: number, longitude: number, zoom = 13) => {
+    setMapDestination((previous) => ({ latitude, longitude, zoom, requestId: (previous?.requestId ?? 0) + 1 }));
+  }, []);
+
+  const locateUser = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationMessage("Location unavailable in this browser. Showing Panaji instead.");
+      navigateTo(15.4909, 73.8278, 12.5);
+      return;
+    }
+    setLocationMessage("Requesting browser location…");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocationMessage("Map centered on your current location.");
+        navigateTo(coords.latitude, coords.longitude, 13);
+      },
+      () => {
+        setLocationMessage("Location permission denied or unavailable. Showing Panaji instead; choose a locality below.");
+        navigateTo(15.4909, 73.8278, 12.5);
+      },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
+    );
+  }, [navigateTo]);
+
+  useEffect(() => { locateUser(); }, [locateUser]);
+
+  function chooseArea(id: string) {
+    setSelectedArea(id);
+    if (id === "current") { locateUser(); return; }
+    const place = GOA_LOCATIONS.find((location) => location.id === id);
+    if (place) {
+      setLocationMessage(`Showing ${place.name}.`);
+      navigateTo(place.latitude, place.longitude, place.zoom ?? 13);
+    }
+  }
+
 
   const visibleReports = useMemo(() => filter === "All reports" ? reports : reports.filter((r) => r.category === filter), [reports, filter]);
   const todayCount = reports.filter((r) => new Date(r.created_at).toDateString() === new Date().toDateString()).length;
@@ -84,9 +125,17 @@ export default function Home() {
             </button>
             {pickingLocation && <div className="hint" style={{marginTop:8}}>Click the incident location on the map. A report form will open with its coordinates.</div>}
           </div>
+          <div style={{padding:"8px 12px"}}>
+            <label htmlFor="goa-location" style={{display:"block",fontWeight:600,marginBottom:6}}>Map location</label>
+            <select id="goa-location" value={selectedArea} onChange={(event) => chooseArea(event.target.value)} style={{width:"100%",maxWidth:360,padding:9,borderRadius:8}}>
+              <option value="current">My current location</option>
+              {GOA_LOCATIONS.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+            </select>
+            <div className="hint" role="status" style={{marginTop:6}}>{locationMessage}</div>
+          </div>
           <div className="filters">{filters.map((item) => <button key={item} className={`filter ${filter === item ? "active" : ""}`} onClick={() => setFilter(item)}>{item}</button>)}</div>
           <div>
-            <MapView reports={visibleReports} onSelect={selectReport} selectedId={selected?.id ?? null} onCenterChange={setMapCenter} pickingLocation={pickingLocation} onLocationPicked={(point) => { setPickedLocation(point); setPickingLocation(false); setShowForm(true); }}/>
+            <MapView reports={visibleReports} onSelect={selectReport} selectedId={selected?.id ?? null} onCenterChange={setMapCenter} destination={mapDestination} pickingLocation={pickingLocation} onLocationPicked={(point) => { setPickedLocation(point); setPickingLocation(false); setShowForm(true); }}/>
             <div className="map-note">Community-submitted information may be incomplete or unverified. Check official sources for emergency instructions.</div>
           </div>
         </div>
