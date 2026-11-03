@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, MapPin, UploadCloud } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
+import { isWithinGoaBounds } from "@/lib/goaBounds";
 
 declare global {
   interface Window {
@@ -87,8 +88,8 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
     setBusy(true); setError(""); setMessage("");
     try {
       const lat = Number(latitude), lng = Number(longitude);
-      if (!Number.isFinite(lat) || lat < 15.40 || lat > 15.60 || !Number.isFinite(lng) || lng < 73.75 || lng > 73.95) {
-        throw new Error("Please choose a location within the Panaji pilot area.");
+      if (!isWithinGoaBounds(lat, lng)) {
+        throw new Error("Please choose an incident location within Goa.");
       }
       const body = new FormData();
       body.set("category", category);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { CATEGORIES } from "@/lib/types";
+import { isWithinGoaBounds } from "@/lib/goaBounds";
 
 export const runtime = "nodejs";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return NextResponse.json({ error: "Invalid category." }, { status: 400 });
     if (description.length < 8 || description.length > 1000) return NextResponse.json({ error: "Description must be between 8 and 1,000 characters." }, { status: 400 });
-    if (!Number.isFinite(latitude) || latitude < 15.40 || latitude > 15.60 || !Number.isFinite(longitude) || longitude < 73.75 || longitude > 73.95) return NextResponse.json({ error: "Location is outside the Panaji pilot area." }, { status: 400 });
+    if (!isWithinGoaBounds(latitude, longitude)) return NextResponse.json({ error: "Location is outside the supported Goa area." }, { status: 400 });
     if (photo instanceof File && photo.size > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image must be 8 MB or smaller." }, { status: 400 });
     if (photo instanceof File && !allowedTypes.includes(photo.type)) return NextResponse.json({ error: "Use a JPEG, PNG, or WebP image." }, { status: 400 });
 
