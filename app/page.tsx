@@ -105,7 +105,7 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <div><div className="eyebrow">Community incident map · Pilot</div><h1>See what's happening in Panaji.</h1><p>Local observations, shared by the people who live here.</p></div>
+        <div><div className="eyebrow">Community incident map · Pilot</div><h1>Know what's happening across Goa.</h1><p>Explore community-reported flooding, road hazards, and other local incidents across Goa.</p></div>
         <button className="secondary-btn" onClick={() => { setLoading(true); loadReports(); }}><RefreshCw size={14}/> Refresh reports</button>
       </section>
 
