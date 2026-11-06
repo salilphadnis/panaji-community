@@ -130,7 +130,7 @@ export default function Home() {
 
       <section className="content-grid">
         <div className="panel">
-          <div className="panel-head"><div><div className="panel-title">Panaji incident map</div><div className="panel-sub">Select a marker to view its report</div></div><span className="hint">Community reports</span></div>
+          <div className="panel-head"><div><div className="panel-title">Goa incident map</div><div className="panel-sub">Select a marker to view its report</div></div><span className="hint">Community reports</span></div>
           <div style={{padding:"8px 12px"}}>
             <button className="secondary-btn" onClick={() => { setPickedLocation(null); setPickingLocation((current) => !current); }}>
               <MapPin size={14}/> {pickingLocation ? "Cancel location selection" : "Select incident location on map"}
