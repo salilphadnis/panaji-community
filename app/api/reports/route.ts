@@ -76,6 +76,15 @@ export async function POST(request: NextRequest) {
       moderation_status: "pending", incident_status: "active"
     }).select("id").single();
 
+    if (insertError) {
+      console.error("Supabase report insert failed:", {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+      });
+    }
+
     if (insertError || !report) {
       return NextResponse.json({ error: "Could not save report. Check the database setup." }, { status: 500 });
     }
