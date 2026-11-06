@@ -7,6 +7,7 @@ import ReportForm from "@/components/ReportForm";
 import { supabase } from "@/lib/supabase";
 import { CATEGORIES, type Report } from "@/lib/types";
 import { GOA_LOCATIONS } from "@/lib/locations";
+import { reportLocality } from "@/lib/goaLocality";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="loading">Loading map…</div> });
 const filters = ["All reports", ...CATEGORIES];
@@ -149,7 +150,7 @@ export default function Home() {
                   <div className="report-thumb"><MapPin size={20}/></div>
                   <div className="report-info">
                     <div className="report-title">{report.category}</div>
-                    <div className="report-meta">{report.village || "Panaji"} · {relativeTime(report.created_at)}</div>
+                    <div className="report-meta">{reportLocality(report)} · {relativeTime(report.created_at)}</div>
                     <div style={{marginTop:7}}><span className={`status ${report.moderation_status === "approved" ? "approved" : ""}`}>{report.moderation_status === "approved" ? "Moderator reviewed" : "Pending review"}</span></div>
                   </div>
                 </div>
@@ -165,7 +166,7 @@ export default function Home() {
       {selected && <div className="modal-backdrop" onMouseDown={(e)=>{if(e.target===e.currentTarget)setSelected(null);}}><section className="modal" role="dialog" aria-modal="true">
         <div className="modal-head"><div><div className="eyebrow">Community report</div><h2>{selected.category}</h2></div><button className="close-btn" onClick={()=>setSelected(null)}>×</button></div>
         <p style={{fontSize:13,lineHeight:1.6}}>{selected.description}</p>
-        <div className="hint">{selected.village || "Panaji"} · {new Date(selected.created_at).toLocaleString()}</div>
+        <div className="hint">{reportLocality(selected)} · {new Date(selected.created_at).toLocaleString()}</div>
         <div className="hint" style={{marginTop:10}}>Coordinates: {selected.latitude.toFixed(5)}, {selected.longitude.toFixed(5)}</div>
         <div className="hint" style={{marginTop:10}}>Incident status: {selected.incident_status}</div>
         <div style={{marginTop:14}}><span className={`status ${selected.moderation_status === "approved" ? "approved" : ""}`}>{selected.moderation_status === "approved" ? "Moderator reviewed" : "Pending review"}</span></div>

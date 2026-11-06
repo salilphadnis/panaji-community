@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, MapPin, UploadCloud } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
 import { isWithinGoaBounds } from "@/lib/goaBounds";
+import { nearestGoaLocality } from "@/lib/goaLocality";
 
 declare global {
   interface Window {
@@ -94,7 +95,7 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
       const body = new FormData();
       body.set("category", category);
       body.set("description", description);
-      body.set("village", village);
+      body.set("village", village.trim() || nearestGoaLocality(lat, lng) || "");
       body.set("latitude", String(lat));
       body.set("longitude", String(lng));
       if (file) body.set("photo", file);
@@ -135,7 +136,8 @@ export default function ReportForm({ onClose, onSubmitted, initialLatitude, init
           </div>
           <div className="field">
             <label htmlFor="village">Locality / nearby landmark</label>
-            <input id="village" maxLength={100} value={village} onChange={(e) => setVillage(e.target.value)} placeholder="e.g. Miramar, Campal, Altinho"/>
+            <input id="village" maxLength={100} value={village} onChange={(e) => setVillage(e.target.value)} placeholder="Optional: e.g. Miramar, Campal, Altinho"/>
+            <div className="hint">If left blank, the nearest major locality from our Goa list will be used. Enter the actual village or landmark for greater accuracy.</div>
           </div>
           <div className="field">
             <label>Location coordinates</label>
