@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Waves, TrafficCone, Construction, Mountain, Sailboat, Wrench, MapPin } from "lucide-react";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import type { Category, Report } from "@/lib/types";
+import { GOA_BOUNDS, isWithinGoaBounds } from "@/lib/goaBounds";
+import { reportLocality } from "@/lib/goaLocality";
 
 type Props = {
   reports: Report[];
@@ -15,6 +17,11 @@ type Props = {
   pickingLocation?: boolean;
   onLocationPicked?: (point: { latitude: number; longitude: number }) => void;
 };
+
+const MAP_BOUNDS: [[number, number], [number, number]] = [
+  [GOA_BOUNDS.minLongitude, GOA_BOUNDS.minLatitude],
+  [GOA_BOUNDS.maxLongitude, GOA_BOUNDS.maxLatitude],
+];
 
 const COLORS: Record<Category, string> = {
   "Flooding / Waterlogging": "#2563eb",
@@ -60,7 +67,8 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
     const instance = new maplibregl.Map({
       container: container.current,
       center: [73.8278, 15.4909],
-      zoom: 12.5,
+      zoom: 9,
+      maxBounds: MAP_BOUNDS,
       style: {
         version: 8,
         sources: {
@@ -75,6 +83,8 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
       },
     });
     map.current = instance;
+    // Fit the complete permitted rectangle at startup, including on mobile.
+    instance.fitBounds(MAP_BOUNDS, { padding: 12, duration: 0 });
     const publishCenter = () => {
       const center = instance.getCenter();
       onCenterChangeRef.current?.({ latitude: center.lat, longitude: center.lng });
@@ -103,6 +113,10 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
 
   useEffect(() => {
     if (!destination || !map.current) return;
+    if (!isWithinGoaBounds(destination.latitude, destination.longitude)) {
+      map.current.fitBounds(MAP_BOUNDS, { padding: 12, duration: 0 });
+      return;
+    }
     map.current.flyTo({
       center: [destination.longitude, destination.latitude],
       zoom: destination.zoom,
@@ -115,11 +129,11 @@ export default function MapView({ reports, onSelect, selectedId, onCenterChange,
     if (!instance) return;
     markers.current.forEach((marker) => marker.remove());
     markers.current = reports.filter((r) =>
-      Number.isFinite(r.longitude) && Number.isFinite(r.latitude)
+      isWithinGoaBounds(r.latitude, r.longitude)
     ).map((report) => {
       const markerButton = document.createElement("button");
       markerButton.type = "button";
-      markerButton.setAttribute("aria-label", `View ${report.category} report in ${report.village || "Panaji"}`);
+      markerButton.setAttribute("aria-label", `View ${report.category} report in ${reportLocality(report)}`);
       markerButton.title = report.category;
       const IconComponent = ICONS[report.category] || MapPin;
       markerButton.style.cssText = [

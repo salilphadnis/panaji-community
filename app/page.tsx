@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { CATEGORIES, type Report } from "@/lib/types";
 import { GOA_LOCATIONS } from "@/lib/locations";
 import { reportLocality } from "@/lib/goaLocality";
+import { isWithinGoaBounds } from "@/lib/goaBounds";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="loading">Loading map…</div> });
 const filters = ["All reports", ...CATEGORIES];
@@ -46,25 +47,35 @@ export default function Home() {
     setMapDestination((previous) => ({ latitude, longitude, zoom, requestId: (previous?.requestId ?? 0) + 1 }));
   }, []);
 
+  const showAllGoa = useCallback(() => {
+    // MapView recognizes an out-of-bounds destination and fits all Goa.
+    navigateTo(0, 0, 0);
+  }, [navigateTo]);
+
   const locateUser = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationMessage("Location unavailable in this browser. Showing Panaji instead.");
-      navigateTo(15.4909, 73.8278, 12.5);
+      setLocationMessage("Location unavailable. Showing all of Goa.");
+      showAllGoa();
       return;
     }
     setLocationMessage("Requesting browser location…");
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setLocationMessage("Map centered on your current location.");
-        navigateTo(coords.latitude, coords.longitude, 13);
+        if (isWithinGoaBounds(coords.latitude, coords.longitude)) {
+          setLocationMessage("Map centered on your current location in Goa.");
+          navigateTo(coords.latitude, coords.longitude, 13);
+        } else {
+          setLocationMessage("Your location is outside Goa. Showing all of Goa.");
+          showAllGoa();
+        }
       },
       () => {
-        setLocationMessage("Location permission denied or unavailable. Showing Panaji instead; choose a locality below.");
-        navigateTo(15.4909, 73.8278, 12.5);
+        setLocationMessage("Location permission denied or unavailable. Showing all of Goa; choose a locality below.");
+        showAllGoa();
       },
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
     );
-  }, [navigateTo]);
+  }, [navigateTo, showAllGoa]);
 
   useEffect(() => { locateUser(); }, [locateUser]);
 
@@ -96,16 +107,16 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="/">
           <div className="brand-mark"><MapPin size={22}/></div>
-          <div><div className="brand-name">Panaji Community</div><div className="brand-sub">A community-powered local map</div></div>
+          <div><div className="brand-name">Goa Community</div><div className="brand-sub">A community-powered local map</div></div>
         </a>
         <div className="top-actions">
-          <div className="area-pill"><MapPin size={12} style={{display:"inline",verticalAlign:"middle"}}/> Panaji, Goa</div>
+          <div className="area-pill"><MapPin size={12} style={{display:"inline",verticalAlign:"middle"}}/> Goa</div>
           <button className="primary-btn" onClick={() => { setPickedLocation(null); setPickingLocation(false); setShowForm(true); }}><Plus size={15}/> Report incident</button>
         </div>
       </header>
 
       <section className="hero">
-        <div><div className="eyebrow">Community incident map · Pilot</div><h1>Know what's happening across Goa.</h1><p>Explore community-reported flooding, road hazards, and other local incidents across Goa.</p></div>
+        <div><div className="eyebrow">Community incident map Â· Pilot</div><h1>Know what's happening across Goa.</h1><p>Explore community-reported flooding, road hazards, and other local incidents across Goa.</p></div>
         <button className="secondary-btn" onClick={() => { setLoading(true); loadReports(); }}><RefreshCw size={14}/> Refresh reports</button>
       </section>
 
