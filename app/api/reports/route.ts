@@ -7,6 +7,10 @@ export const runtime = "nodejs";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
+const REPORT_RATE_LIMIT = Number(
+  process.env.REPORT_RATE_LIMIT || "5"
+);
+
 export async function POST(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
       if (!Array.isArray(results) || results.length !== 2 || results.some(r => r.error) || typeof results[0]?.result !== "number" || results[1]?.result !== 1) {
         return NextResponse.json({ error: "Submission protection is temporarily unavailable." }, { status: 503 });
       }
-      if (results[0].result > 5) return NextResponse.json({ error: "Too many reports from this connection. Please try again later." }, { status: 429 });
+      if (results[0].result > REPORT_RATE_LIMIT) return NextResponse.json({ error: "Too many reports from this connection. Please try again later." }, { status: 429 });
     }
 
     if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return NextResponse.json({ error: "Invalid category." }, { status: 400 });
